@@ -1,0 +1,18 @@
+//NOTICE:segment of below code is generated code, You had better no changed it
+{$entity}
+{$schemaType}
+{$schema}
+
+func (T *TbUserSchemaType) ToSql() (string, []any) {
+	return T.TableName(), nil
+}
+
+func (T *TbUserSchemaType) As(name string) gmodel.ToSql {
+	return orm.WrapField(T).As(name)
+}
+
+func (T *TbUserSchemaType) TableName() string {
+	return {$tableName}
+}
+
+//
