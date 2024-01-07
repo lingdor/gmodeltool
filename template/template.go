@@ -1,14 +1,25 @@
-package schema
+package template
 
 import (
 	"embed"
 	_ "embed"
+	"io/fs"
 )
 
-//go:embed files/gen.go.template
+//go:embed files/schema.go.template
 var schemaTmplate embed.FS
 
+//go:embed files/new.go.template
+var newtemplate embed.FS
+
 const EndStatement = "//gmodel:gen:end"
+
+//gmodel:gen:start:schema:tb_user
+const StartStatement = "//gmodel:gen:start"
+
+func GetNewTemplate() (fs.File, error) {
+	return newtemplate.Open("files/new.go.template")
+}
 
 func GenTableSchema() {
 

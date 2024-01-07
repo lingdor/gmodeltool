@@ -1,5 +1,5 @@
 gmodel:
-  gen:
+  connection:
     default:
       dsn: mysql://localhost@bobby:abc123/dbname
     user:
