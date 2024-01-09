@@ -1,9 +1,17 @@
 package template
 
 import (
+	"context"
+	"database/sql"
 	"embed"
 	_ "embed"
+	"github.com/lingdor/gmodel"
+	"github.com/lingdor/gmodel/gsql"
+	"github.com/lingdor/magicarray/array"
+	"io"
 	"io/fs"
+	"reflect"
+	"strings"
 )
 
 //go:embed files/schema.go.template
@@ -17,11 +25,37 @@ const EndStatement = "//gmodel:gen:end"
 //gmodel:gen:start:schema:tb_user
 const StartStatement = "//gmodel:gen:start"
 
-func GetNewTemplate() (fs.File, error) {
-	return newtemplate.Open("files/new.go.template")
+func GetNewEmptyFile(packageName string) (cnt string, err error) {
+	var file fs.File
+	if file, err = newtemplate.Open("files/new.go.template"); err == nil {
+		defer file.Close()
+		var bs []byte
+		if bs, err = io.ReadAll(file); err == nil {
+			cnt = string(bs)
+			cnt = strings.ReplaceAll(cnt, "{$package}", packageName)
+		}
+	}
+	return
 }
 
-func GenTableSchema() {
+func GenTableSchema(ctx context.Context, name string, db *sql.DB) (err error) {
+
+	var version array.ZVal
+	if version, err = gmodel.QueryValContext(ctx, db, gsql.Sql("select version()")); err == nil {
+		var schemaArr array.MagicArray
+		driverType := reflect.TypeOf(db.Driver())
+		if driverType.String() == "*mysql.MySQLDriver" {
+			schemaArr, err = gmodel.QueryArrRowsContext(ctx, db, gsql.Raw("desc ?", name))
+
+		}
+		//pgsql
+		//schemaArr, err = gmodel.QueryArrRowsContext(ctx, db, gsql.Raw("\\d ?", name))
+		if err == nil {
+
+		}
+	}
+	return
+	//common.LoadCommonDB()
 
 	/*
 		type TBUserEntity struct {

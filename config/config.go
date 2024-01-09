@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"github.com/lingdor/gomodeltool/log"
+	"github.com/lingdor/gomodeltool/common"
 	"gopkg.in/yaml.v3"
 	"os"
 	"path"
@@ -43,7 +43,7 @@ func LoadConfig() (err error) {
 func loadConfigPath(pathstr string, fname string) (err error) {
 	var fpath = path.Join(pathstr, fname)
 	if _, err := os.Stat(fpath); err == nil {
-		log.VerboseLog("Load Config file: %s", fpath)
+		common.VerboseLog("Load Config file: %s", fpath)
 		return Parse(fpath)
 	}
 	pathstr = path.Dir(pathstr)

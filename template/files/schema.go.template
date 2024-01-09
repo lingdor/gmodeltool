@@ -1,17 +1,15 @@
-//NOTICE:segment of below code is generated code, You had better no changed it
+//NOTICE:segment of below code is generated code
 {$schemaType}
 {$schema}
 
-func (T *TbUserSchemaType) ToSql() (string, []any) {
+func (T *{$schemaTypeName}) ToSql() (string, []any) {
 	return T.TableName(), nil
 }
 
-func (T *TbUserSchemaType) As(name string) gmodel.ToSql {
+func (T *{$schemaTypeName}) As(name string) gmodel.ToSql {
 	return orm.WrapField(T).As(name)
 }
 
-func (T *TbUserSchemaType) TableName() string {
+func (T *{$schemaTypeName}) TableName() string {
 	return {$tableName}
 }
-
-//

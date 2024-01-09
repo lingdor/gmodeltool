@@ -1,9 +1,37 @@
 package template
 
-import "testing"
+import (
+	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/lingdor/gmodel"
+	"github.com/lingdor/gmodel/gsql"
+	"github.com/lingdor/gomodeltool/db"
+	"github.com/lingdor/magicarray/array"
+	"reflect"
+	"strings"
+	"testing"
+)
 
 func TestGenTableSchema(t *testing.T) {
 
-	GenTableSchema()
+	packageName := "xx"
+	fmt.Println(GetNewEmptyFile(packageName))
+
+}
+
+func TestXX(t *testing.T) {
+	//user:password@/dbname
+	conn, err := db.Connect("mysql://root:123456@tcp(127.0.0.1:3306)/db1")
+	if err != nil {
+		panic(err)
+	}
+
+	driver := conn.Driver()
+	tt := reflect.TypeOf(driver)
+	fmt.Println(tt)
+	arr, _ := gmodel.QueryArr(conn, gsql.Raw("show VARIABLES like '%version_comment%'"))
+	marshal, _ := array.JsonMarshal(arr)
+	fmt.Println(string(marshal))
+	fmt.Println(strings.IndexAny("good", "%_"))
 
 }
