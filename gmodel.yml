@@ -1,0 +1,6 @@
+gmodel:
+  connection:
+    default:
+      dsn: mysql://localhost@bobby:abc123/dbname
+    user:
+      dsn: mysql://localhost@bobby:abc123/userdb

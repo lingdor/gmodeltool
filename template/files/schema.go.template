@@ -1,0 +1,15 @@
+//NOTICE:segment of below code is generated code
+{$schemaType}
+{$schema}
+
+func (T *{$schemaTypeName}) ToSql() (string, []any) {
+	return T.TableName(), nil
+}
+
+func (T *{$schemaTypeName}) As(name string) gmodel.ToSql {
+	return orm.WrapField(T).As(name)
+}
+
+func (T *{$schemaTypeName}) TableName() string {
+	return {$tableName}
+}
