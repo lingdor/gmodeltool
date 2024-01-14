@@ -13,7 +13,3 @@ require (
 	golang.org/x/exp v0.0.0-20231226003508-02704c960a9b // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/lingdor/gmodel v0.0.0-20240104175415-357da67511cd => ../gmodel
-
-replace github.com/lingdor/magicarray v0.0.6 => ../magicarray
