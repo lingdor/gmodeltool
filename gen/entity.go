@@ -20,7 +20,7 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 	for _, column := range columns {
 		field := column.Field
 
-		fillName := utils.PadLeftRightSpaces(field.Name(), 4, maxLen)
+		fillName := utils.PadLeftRightSpaces(column.Name, 4, maxLen)
 
 		memberType := "*string"
 		typeStr := strings.ToLower(field.Type())
