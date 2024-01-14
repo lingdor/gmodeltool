@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
@@ -33,7 +34,7 @@ func init() {
 	flags := Command.Flags()
 	flags.StringVar(&commander.tables, "tables", "", "you can use comma split table names, and use wildcard character to search tables.")
 	flags.StringVar(&commander.name, "name", "", "")
-	flags.BoolVar(&commander.tofiles, "tofiles", false, "generate files, If false, generate to current file.")
+	flags.StringVarP(&commander.tofiles, "to-files", "t", "", "generate files to path, If empty, generate to current file.")
 	flags.BoolVar(&commander.dryRun, "dry-run", false, "Testing to running and print results, do not write to files")
 	flags.BoolVar(&commander.gorm, "gorm", false, "generate entity for gorm tags.")
 }
@@ -41,7 +42,7 @@ func init() {
 type genSchemaCommander struct {
 	tables      string
 	name        string
-	tofiles     bool
+	tofiles     string
 	dryRun      bool
 	packageName string
 	action      string
@@ -78,8 +79,12 @@ func (g *genSchemaCommander) runCommand(cmd *cobra.Command, args []string) {
 		common.VerboseLog("config loaded success")
 		if conn, err = common.LoadCommonDB(); err == nil {
 
+			tables := make([]string, 0, 10)
 			sptables := strings.Split(g.tables, ",")
 			for _, table := range sptables {
+				if strings.TrimSpace(table) == "" {
+					continue
+				}
 				if strings.ContainsAny(table, "%_") {
 					var liketables array.MagicArray
 					if liketables, err = gmodel.QueryArrRowsContext(ctx, conn, gsql.Sql(fmt.Sprintf("show tables like '%s'", strings.ReplaceAll(table, "'", "''")))); err == nil {
@@ -89,13 +94,16 @@ func (g *genSchemaCommander) runCommand(cmd *cobra.Command, args []string) {
 						iter := liketables.Iter()
 						for tableRow := iter.FirstVal(); tableRow != nil; tableRow = iter.NextVal() {
 							tableName := tableRow.MustArr().Values().Get(0).String()
-							err = g.genTableFile(ctx, conn, tableName)
+							tables = append(tables, tableName)
+							//err = g.genTableFile(ctx, conn, tableName)
 						}
 					}
 
 				} else {
-					err = g.genTableFile(ctx, conn, table)
+					tables = append(tables, table)
+					//err = g.genTableFile(ctx, conn, table)
 				}
+				g.genTables(ctx, conn, tables)
 			}
 		}
 	}
@@ -120,38 +128,60 @@ func (g *genSchemaCommander) GenName(dbName string) string {
 	return dbName
 }
 
-func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, table string) (err error) {
+func (g *genSchemaCommander) genTables(ctx context.Context, conn *sql.DB, tables []string) (err error) {
 
+	common.VerboseLog("generating table: %v", tables)
 	pwd := common.Pwd()
 	var fpath string
+
+	if gofile, ok := os.LookupEnv("GOFILE"); !ok && g.tofiles == "" {
+		return fmt.Errorf("no found --to-files parameters set")
+	} else if ok && g.tofiles == "" {
+		fpath = path.Join(pwd, gofile)
+	}
+
+	if g.tofiles != "" {
+		for _, table := range tables {
+			fname := strings.ToLower(strings.ReplaceAll(table, "_", ""))
+			fname = fmt.Sprintf("%s_gen.go", fname)
+			var to string
+			if g.tofiles == "" || g.tofiles[0] == '.' {
+				to = path.Join(pwd, g.tofiles)
+			} else {
+				to = g.tofiles
+			}
+			fpath = path.Join(to, fname)
+			startKey := fmt.Sprintf("%s:%s:%s", template.StartStatement, g.action, strings.ToLower(table))
+			if err = g.genTableFile(ctx, conn, fpath, startKey, table); err != nil {
+				return err
+			}
+		}
+		return
+	}
+	startKey := fmt.Sprintf("%s:%s:@embed", template.StartStatement, g.action)
+	err = g.genTableFile(ctx, conn, fpath, startKey, tables...)
+	return
+}
+func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, fpath string, startKey string, tables ...string) (err error) {
 
 	var goline = -1
 	if envGoline, ok := os.LookupEnv("GOLINE"); ok {
 		goline, _ = strconv.Atoi(envGoline)
 	}
-
-	if gofile, ok := os.LookupEnv("GOFILE"); !ok {
-		g.tofiles = true
-	} else {
-		fpath = path.Join(pwd, gofile)
-	}
-
-	if g.tofiles {
-		fname := strings.ToLower(strings.ReplaceAll(table, "_", ""))
-		fname = fmt.Sprintf("%s_gen.go", fname)
-		fpath = path.Join(pwd, fname)
-	}
 	fpathT := fmt.Sprintf("%s_t", fpath)
 
 	var tmpFile *os.File
+	var file *os.File
 	if _, err = os.Stat(fpath); err == nil {
+		file, err = os.Open(fpath)
 		if !g.dryRun {
-			tmpFile, err = os.OpenFile(fpathT, os.O_TRUNC, 0)
+			tmpFile, err = os.OpenFile(fpathT, os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0666)
 		} else {
 			tmpFile = os.Stdout
 		}
 	} else if os.IsNotExist(err) {
 		tmpFile, err = g.createEmpty(ctx, fpathT)
+		file = nil
 	}
 	if err == nil {
 		defer func() {
@@ -159,39 +189,27 @@ func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, tab
 				tmpFile.Close()
 			}
 		}()
-		var file *os.File
-		if _, err = os.Stat(fpath); err == nil {
-			//file exists
-			file, err = os.Open(fpath)
-		} else if os.IsNotExist(err) {
-			//ignore
-			file = nil
-			err = nil
-		} else {
-			panic(err)
-		}
 		if err == nil {
 			defer file.Close()
 			posReader := common.NewPosReader(file)
-			var line string
-			startKey := fmt.Sprintf("%s:%s:%s", template.StartStatement, g.action, strings.ToLower(table))
+
 			var isMatchedFirst = false
 			if file != nil {
-				for line, err = posReader.ReadLine(); err != nil; line, err = posReader.ReadLine() {
+				for line, err := posReader.ReadLine(); err == nil; line, err = posReader.ReadLine() {
 					if goline != 1 {
 						if !isMatchedFirst && posReader.LineNo > goline {
 							if strings.TrimSpace(line) == "" {
 								continue //ignore empty lines
 							}
 							if len(line) >= len(startKey) && strings.ToLower(line[0:len(startKey)]) == startKey {
-								for line, err = posReader.ReadLine(); err != nil; line, err = posReader.ReadLine() {
-									if len(line) >= len(template.EndStatement) && line[0:len(startKey)] == template.EndStatement {
+								for line, err = posReader.ReadLine(); err == nil; line, err = posReader.ReadLine() {
+									if len(line) >= len(template.EndStatement) && line[0:len(template.EndStatement)] == template.EndStatement {
 										isMatchedFirst = true
 										break
 									}
 								}
 							}
-							if err = g.genTable(ctx, conn, table, tmpFile, startKey, template.EndStatement); err != nil {
+							if err = g.genTable(ctx, conn, tables, tmpFile, startKey, template.EndStatement); err != nil {
 								return err
 							}
 							isMatchedFirst = true
@@ -201,12 +219,12 @@ func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, tab
 						continue
 					}
 					if !isMatchedFirst && len(line) >= len(startKey) && line[0:len(startKey)] == startKey {
-						for line, err = posReader.ReadLine(); err != nil; line, err = posReader.ReadLine() {
-							if len(line) >= len(template.EndStatement) && strings.ToLower(line[0:len(startKey)]) == template.EndStatement {
+						for line, err = posReader.ReadLine(); err == nil; line, err = posReader.ReadLine() {
+							if len(line) >= len(template.EndStatement) && strings.ToLower(line[0:len(template.EndStatement)]) == template.EndStatement {
 								break
 							}
 						}
-						if err = g.genTable(ctx, conn, table, tmpFile, startKey, template.EndStatement); err != nil {
+						if err = g.genTable(ctx, conn, tables, tmpFile, startKey, template.EndStatement); err != nil {
 							return err
 						}
 						isMatchedFirst = true
@@ -216,7 +234,7 @@ func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, tab
 				}
 			}
 			if !isMatchedFirst {
-				err = g.genTable(ctx, conn, table, tmpFile, startKey, template.EndStatement)
+				err = g.genTable(ctx, conn, tables, tmpFile, startKey, template.EndStatement)
 			}
 		}
 		if err == nil {
@@ -253,49 +271,70 @@ func (g *genSchemaCommander) createEmpty(ctx context.Context, fpath string) (w *
 	return
 }
 
-func (g *genSchemaCommander) genTable(ctx context.Context, conn *sql.DB, table string, w *os.File, start, end string) (err error) {
-	common.VerboseLog("begin generate table:%s", table)
+func (g *genSchemaCommander) genTable(ctx context.Context, conn *sql.DB, tables []string, w *os.File, start, end string) (err error) {
+	common.VerboseLog("begin generate table:%v", tables)
 
-	//var fields = make([]*gmodel.FieldInfo, 0, 10)
-	//fields := array.Make(true, true, 10)
-	fields := make([]*common.ColumnInfo, 0, 10)
+	buff := bytes.Buffer{}
+	for _, table := range tables {
+		//var fields = make([]*gmodel.FieldInfo, 0, 10)
+		//fields := array.Make(true, true, 10)
+		fields := make([]*common.ColumnInfo, 0, 10)
 
-	driverType := reflect.TypeOf(conn.Driver())
-	if strings.Contains(driverType.String(), "mysql") {
-		var descArr array.MagicArray
+		driverType := reflect.TypeOf(conn.Driver())
+		if strings.Contains(driverType.String(), "mysql") {
+			var descArr array.MagicArray
 
-		if descArr, err = gmodel.QueryArrRowsContext(ctx, conn, gsql.Sql(fmt.Sprintf("show full fields from `%s`", table))); err == nil {
-			iter := descArr.Iter()
-			for row := iter.FirstVal(); row != nil; row = iter.NextVal() {
-				if row, ok := row.Arr(); ok {
-					cField := row.Get("Field").String()
-					cType := row.Get("Type").String()
-					cNull := row.Get("Null").String()
-					cKey := row.Get("Key").String()
-					cComment := row.Get("Comment").String()
-					field := gmodel.NewField(cField, cType, cNull == "YES", cKey == "PRI")
-					fields = append(fields, &common.ColumnInfo{
-						Field:   field,
-						Comment: cComment,
-						Name:    g.GenName(cField),
-					})
+			if descArr, err = gmodel.QueryArrRowsContext(ctx, conn, gsql.Sql(fmt.Sprintf("show full fields from `%s`", table))); err == nil {
+				iter := descArr.Iter()
+				for row := iter.FirstVal(); row != nil; row = iter.NextVal() {
+					if row, ok := row.Arr(); ok {
+						cField := row.Get("Field").String()
+						cType := row.Get("Type").String()
+						cNull := row.Get("Null").String()
+						cKey := row.Get("Key").String()
+						cComment := row.Get("Comment").String()
+						field := gmodel.NewField(cField, cType, cNull == "YES", cKey == "PRI")
+						fields = append(fields, &common.ColumnInfo{
+							Field:   field,
+							Comment: cComment,
+							Name:    g.GenName(cField),
+						})
+					}
 				}
 			}
+
+		} else if strings.Contains(driverType.String(), "pq.Driver") {
+			//pgsql todo
+			return fmt.Errorf("not supported pgsql yet")
 		}
-
-	} else if strings.Contains(driverType.String(), "pq.Driver") {
-		//pgsql todo
-		return fmt.Errorf("not supported pgsql yet")
+		ObjName := g.GenName(table)
+		var code string
+		if g.action == CommandSchema {
+			code, err = g.GenTableSchema(ctx, table, ObjName, fields)
+		} else if g.action == CommandEntity {
+			code, err = g.GenTableEntity(ctx, table, ObjName, fields)
+		} else {
+			return fmt.Errorf("no found command:%s", g.action)
+		}
+		if err == nil {
+			buff.WriteString(code)
+			buff.WriteString("\n")
+		}
 	}
-	ObjName := g.GenName(table)
-
-	if g.action == CommandSchema {
-		g.GenSchema(ctx, w, table, ObjName, fields, start, end)
-	} else if g.action == CommandEntity {
-		g.GenEntity(ctx, w, table, ObjName, fields, start, end)
-	} else {
-		panic(fmt.Errorf("no found command:%s", g.action))
-	}
-
+	data := buff.Bytes()
+	w.WriteString(fmt.Sprintf("%s:%s\n", start, common.MD5(data)))
+	w.Write(data)
+	w.WriteString(fmt.Sprintf("%s\n", end))
 	return
+}
+func (g *genSchemaCommander) maxColumnLen(cols []*common.ColumnInfo) int {
+
+	max := 0
+	for _, col := range cols {
+		if len(col.Name) > max {
+			max = len(col.Name)
+		}
+	}
+	return max
+
 }

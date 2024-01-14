@@ -9,6 +9,7 @@ import (
 
 var AppConfig struct {
 	Gmodel struct {
+		Verbose    bool
 		Connection map[any]struct {
 			Dsn string
 		}

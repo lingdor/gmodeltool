@@ -6,27 +6,22 @@ import (
 	"fmt"
 	"github.com/lingdor/gmodeltool/common"
 	"github.com/lingdor/gmodeltool/template"
-	"os"
+	"github.com/lingdor/magicarray/utils"
 	"strings"
 )
 
-func (g *genSchemaCommander) GenEntity(ctx context.Context, w *os.File, table, objName string, fields []*common.ColumnInfo, start, end string) {
-	if code, err := g.GenTableEntity(ctx, table, objName, fields); err == nil {
-
-		w.WriteString(fmt.Sprintf("%s:%s\n", start, common.MD5(code)))
-		w.WriteString(code)
-		w.WriteString(fmt.Sprintf("\n%s", end))
-	}
-
-}
-
 func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, name string, columns []*common.ColumnInfo) (code string, err error) {
 
+	maxLen := g.maxColumnLen(columns)
+	maxLen += 8
 	structBuf := bytes.Buffer{}
 	var typeName = fmt.Sprintf("%sEntity", name)
 	structBuf.WriteString(fmt.Sprintf("type %s struct{\n", typeName))
 	for _, column := range columns {
 		field := column.Field
+
+		fillName := utils.PadLeftRightSpaces(field.Name(), 4, maxLen)
+
 		memberType := "*string"
 		typeStr := strings.ToLower(field.Type())
 		if index := strings.Index(typeStr, "("); index > -1 {
@@ -64,7 +59,7 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 			}
 			tagInfo = fmt.Sprintf(`%s gorm:"column:%s%s"`, tagInfo, field.Name(), ops)
 		}
-		structBuf.WriteString(fmt.Sprintf("    %s	%s `%s` //%s\n", column.Name, memberType, tagInfo, column.Comment))
+		structBuf.WriteString(fmt.Sprintf("%s %s `%s` //%s\n", fillName, memberType, tagInfo, column.Comment))
 	}
 	structBuf.WriteString("\n}")
 

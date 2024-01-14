@@ -1,4 +1,5 @@
 gmodel:
+  verbose: true
   connection:
     default:
       dsn: mysql://localhost@bobby:abc123/dbname

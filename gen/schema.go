@@ -6,34 +6,26 @@ import (
 	"fmt"
 	"github.com/lingdor/gmodeltool/common"
 	"github.com/lingdor/gmodeltool/template"
-	"os"
+	"github.com/lingdor/magicarray/utils"
 	"strings"
 )
 
-func (g *genSchemaCommander) GenSchema(ctx context.Context, w *os.File, table, objName string, fields []*common.ColumnInfo, start, end string) {
-
-	if code, err := g.GenTableSchema(ctx, table, objName, fields); err == nil {
-
-		w.WriteString(fmt.Sprintf("%s:%s\n", start, common.MD5(code)))
-		w.WriteString(code)
-		w.WriteString(fmt.Sprintf("\n%s", end))
-	}
-}
-
 func (g *genSchemaCommander) GenTableSchema(ctx context.Context, tname string, name string, fields []*common.ColumnInfo) (code string, err error) {
 
+	maxLen := g.maxColumnLen(fields)
+	maxLen += 8
 	structBuf := bytes.Buffer{}
 	variable := bytes.Buffer{}
 	var typeName = fmt.Sprintf("%sSchemaType", name)
 	structBuf.WriteString(fmt.Sprintf("type %s struct{\n", typeName))
-	variable.WriteString(fmt.Sprintf("var %sSchema %s{\n", name, typeName))
+	variable.WriteString(fmt.Sprintf("var %sSchema %s = %s{\n", name, typeName, typeName))
 	for _, column := range fields {
 		field := column.Field
-
+		fillName := utils.PadLeftRightSpaces(column.Name, 4, maxLen)
 		structBuf.WriteString(fmt.Sprintf("    // %s %s \n", column.Name, column.Comment))
-		structBuf.WriteString(fmt.Sprintf("    %s	gmodel.Field\n", column.Name))
-		variable.WriteString(fmt.Sprintf("	%s:		gmodel.NewField(\"%s\",\"%s\",%v,%v),\n",
-			column.Name, field.Name(), field.Type(), field.IsNullable(), field.IsPK()))
+		structBuf.WriteString(fmt.Sprintf("%s gmodel.Field\n", fillName))
+		variable.WriteString(fmt.Sprintf("%s :gmodel.NewField(\"%s\", \"%s\", %v, %v),\n",
+			fillName, field.Name(), field.Type(), field.IsNullable(), field.IsPK()))
 	}
 	structBuf.WriteString("\n}")
 	variable.WriteString("\n}")

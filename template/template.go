@@ -14,7 +14,7 @@ var templateFS embed.FS
 const EndStatement = "//gmodel:gen:end"
 
 //gmodel:gen:start:schema:tb_user
-const StartStatement = "//gmodel:gen:start"
+const StartStatement = "//gmodel:gen"
 
 func GetNewEmptyFile(packageName string) (cnt string, err error) {
 	cnt, err = ReadFS("files/new.go.template")

@@ -42,7 +42,7 @@ func Var(flags *pflag.FlagSet) {
 }
 
 func GetVerbose() bool {
-	return verbose
+	return verbose || config.AppConfig.Gmodel.Verbose
 }
 
 func VerboseLog(msg string, args ...any) {
@@ -63,8 +63,7 @@ func LoadCommonDB() (*sql.DB, error) {
 	return db.Connect(connDNS)
 }
 
-func MD5(str string) string {
-	data := []byte(str) //切片
+func MD5(data []byte) string {
 	has := md5.Sum(data)
 	md5str := fmt.Sprintf("%x", has) //将[]byte转成16进制
 	return md5str
