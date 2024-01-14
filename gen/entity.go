@@ -11,7 +11,7 @@ import (
 )
 
 func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, name string, columns []*common.ColumnInfo) (code string, imports []common.Import, err error) {
-
+	imports = make([]common.Import, 0)
 	maxLen := g.maxColumnLen(columns)
 	maxLen += 8
 	structBuf := bytes.Buffer{}
@@ -46,6 +46,7 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 			memberType = "*int64"
 		case "date", "timestamp", "time", "datetime":
 			memberType = "*time.Time"
+			imports = append(imports, common.Import{Path: "time"})
 		case "float":
 			memberType = "*float"
 		case "double":
