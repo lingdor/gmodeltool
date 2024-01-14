@@ -9,13 +9,16 @@ import "time"
 // or
 //
 //go:generate gmodeltool gen entity --gorm --tables tb_user
-//gmodel:gen:entity:@embed:10ee7e5ec910d29e251a7a7481b7fed9
-type TbUserEntity struct {
-	id         *string    `gmodel:"id" gorm:"column:id;primaryKey;"`     //
-	name       *string    `gmodel:"name" gorm:"column:name"`             //
-	age        *int       `gmodel:"age" gorm:"column:age"`               //
-	createtime *time.Time `gmodel:"createtime" gorm:"column:createtime"` //
+//gmodel:gen:entity:@embed:c93b35b26ef9cdaf339981ccb89bcd3c
+type TbUserEntity struct{
+    // Id 
+    Id             *string `gmodel:"id" gorm:"column:id;primaryKey;"` //
+    // Name 
+    Name           *string `gmodel:"name" gorm:"column:name"` //
+    // Age 
+    Age            *int `gmodel:"age" gorm:"column:age"` //
+    // Createtime 
+    Createtime     *time.Time `gmodel:"createtime" gorm:"column:createtime"` //
 
 }
-
 //gmodel:gen:end

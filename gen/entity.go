@@ -59,6 +59,7 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 			}
 			tagInfo = fmt.Sprintf(`%s gorm:"column:%s%s"`, tagInfo, field.Name(), ops)
 		}
+		structBuf.WriteString(fmt.Sprintf("    // %s %s\n", column.Name, column.Comment))
 		structBuf.WriteString(fmt.Sprintf("%s %s `%s` //%s\n", fillName, memberType, tagInfo, column.Comment))
 	}
 	structBuf.WriteString("\n}")
