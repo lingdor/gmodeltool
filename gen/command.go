@@ -196,7 +196,7 @@ func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, fpa
 			var isMatchedFirst = false
 			if file != nil {
 				for line, err := posReader.ReadLine(); err == nil; line, err = posReader.ReadLine() {
-					if goline != 1 {
+					if goline != -1 && g.tofiles == "" { //embed model
 						if !isMatchedFirst && posReader.LineNo > goline {
 							if strings.TrimSpace(line) == "" {
 								continue //ignore empty lines

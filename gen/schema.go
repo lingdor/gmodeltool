@@ -18,7 +18,7 @@ func (g *genSchemaCommander) GenTableSchema(ctx context.Context, tname string, n
 	variable := bytes.Buffer{}
 	var typeName = fmt.Sprintf("%sSchemaType", name)
 	structBuf.WriteString(fmt.Sprintf("type %s struct{\n", typeName))
-	variable.WriteString(fmt.Sprintf("var %sSchema %s = %s{\n", name, typeName, typeName))
+	variable.WriteString(fmt.Sprintf("var %sSchema *%s = &%s{\n", name, typeName, typeName))
 	for _, column := range fields {
 		field := column.Field
 		fillName := utils.PadLeftRightSpaces(column.Name, 4, maxLen)
