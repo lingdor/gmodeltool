@@ -1,8 +1,1 @@
 package {$package}
-
-import(
-    "github.com/lingdor/gmodel"
-    "github.com/lingdor/gmodel/orm"
-    "github.com/lingdor/gmodel/gsql"
-)
-

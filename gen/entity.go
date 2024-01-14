@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, name string, columns []*common.ColumnInfo) (code string, err error) {
+func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, name string, columns []*common.ColumnInfo) (code string, imports []common.Import, err error) {
 
 	maxLen := g.maxColumnLen(columns)
 	maxLen += 8
@@ -59,7 +59,7 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 			}
 			tagInfo = fmt.Sprintf(`%s gorm:"column:%s%s"`, tagInfo, field.Name(), ops)
 		}
-		structBuf.WriteString(fmt.Sprintf("    // %s %s\n", column.Name, column.Comment))
+		structBuf.WriteString(fmt.Sprintf("    // %s %s\n", column.Name, strings.ReplaceAll(column.Comment, "\n", "\n    //")))
 		structBuf.WriteString(fmt.Sprintf("%s %s `%s` //%s\n", fillName, memberType, tagInfo, column.Comment))
 	}
 	structBuf.WriteString("\n}")
@@ -67,5 +67,6 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 	if code, err = template.ReadFS("files/entity.go.template"); err == nil {
 		code = strings.ReplaceAll(code, "{$struct}", structBuf.String())
 	}
+	imports = nil
 	return
 }

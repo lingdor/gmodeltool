@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/lingdor/gcode"
 	"github.com/lingdor/gmodel"
 	"github.com/lingdor/gmodel/gsql"
 	"github.com/lingdor/gmodeltool/common"
@@ -12,6 +13,7 @@ import (
 	"github.com/lingdor/gmodeltool/template"
 	"github.com/lingdor/magicarray/array"
 	"github.com/spf13/cobra"
+	"io"
 	"os"
 	"path"
 	"reflect"
@@ -168,113 +170,96 @@ func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, fpa
 	if envGoline, ok := os.LookupEnv("GOLINE"); ok {
 		goline, _ = strconv.Atoi(envGoline)
 	}
-	fpathT := fmt.Sprintf("%s_t", fpath)
 
-	var tmpFile *os.File
+	var tmpFile = &bytes.Buffer{}
 	var file *os.File
 	if _, err = os.Stat(fpath); err == nil {
 		file, err = os.Open(fpath)
-		if !g.dryRun {
-			tmpFile, err = os.OpenFile(fpathT, os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0666)
-		} else {
-			tmpFile = os.Stdout
-		}
 	} else if os.IsNotExist(err) {
-		tmpFile, err = g.createEmpty(ctx, fpathT)
+		var code string
+		code, err = g.createEmpty(ctx)
 		file = nil
+		tmpFile.WriteString(code)
 	}
 	if err == nil {
 		defer func() {
-			if !g.dryRun {
-				tmpFile.Close()
+			if file != nil {
+				file.Close()
 			}
 		}()
-		if err == nil {
-			defer file.Close()
-			posReader := common.NewPosReader(file)
+		posReader := common.NewPosReader(file)
 
-			var isMatchedFirst = false
-			if file != nil {
-				for line, err := posReader.ReadLine(); err == nil; line, err = posReader.ReadLine() {
-					if goline != -1 && g.tofiles == "" { //embed model
-						if !isMatchedFirst && posReader.LineNo > goline {
-							if strings.TrimSpace(line) == "" {
-								continue //ignore empty lines
-							}
-							if len(line) >= len(startKey) && strings.ToLower(line[0:len(startKey)]) == startKey {
-								for line, err = posReader.ReadLine(); err == nil; line, err = posReader.ReadLine() {
-									if len(line) >= len(template.EndStatement) && line[0:len(template.EndStatement)] == template.EndStatement {
-										isMatchedFirst = true
-										break
-									}
-								}
-							}
-							if err = g.genTable(ctx, conn, tables, tmpFile, startKey, template.EndStatement); err != nil {
-								return err
-							}
-							isMatchedFirst = true
-							continue
+		var isMatchedFirst = false
+		if file != nil {
+			for line, err := posReader.ReadLine(); err == nil; line, err = posReader.ReadLine() {
+				if goline != -1 && g.tofiles == "" { //embed model
+					if !isMatchedFirst && posReader.LineNo > goline {
+						if strings.TrimSpace(line) == "" {
+							continue //ignore empty lines
 						}
-						tmpFile.WriteString(line + "\n")
-						continue
-					}
-					if !isMatchedFirst && len(line) >= len(startKey) && line[0:len(startKey)] == startKey {
-						for line, err = posReader.ReadLine(); err == nil; line, err = posReader.ReadLine() {
-							if len(line) >= len(template.EndStatement) && strings.ToLower(line[0:len(template.EndStatement)]) == template.EndStatement {
-								break
+						if len(line) >= len(startKey) && strings.ToLower(line[0:len(startKey)]) == startKey {
+							for line, err = posReader.ReadLine(); err == nil; line, err = posReader.ReadLine() {
+								if len(line) >= len(template.EndStatement) && line[0:len(template.EndStatement)] == template.EndStatement {
+									isMatchedFirst = true
+									break
+								}
 							}
 						}
 						if err = g.genTable(ctx, conn, tables, tmpFile, startKey, template.EndStatement); err != nil {
 							return err
 						}
 						isMatchedFirst = true
-					} else {
-						_, err = tmpFile.WriteString(line + "\n")
+						continue
 					}
+					tmpFile.WriteString(line + "\n")
+					continue
+				}
+				if !isMatchedFirst && len(line) >= len(startKey) && line[0:len(startKey)] == startKey {
+					for line, err = posReader.ReadLine(); err == nil; line, err = posReader.ReadLine() {
+						if len(line) >= len(template.EndStatement) && strings.ToLower(line[0:len(template.EndStatement)]) == template.EndStatement {
+							break
+						}
+					}
+					if err = g.genTable(ctx, conn, tables, tmpFile, startKey, template.EndStatement); err != nil {
+						return err
+					}
+					isMatchedFirst = true
+				} else {
+					_, err = tmpFile.WriteString(line + "\n")
 				}
 			}
-			if !isMatchedFirst {
-				err = g.genTable(ctx, conn, tables, tmpFile, startKey, template.EndStatement)
-			}
 		}
-		if err == nil {
-			if !g.dryRun {
-				file.Close()
-				tmpFile.Close()
-				os.Remove(fpath)
-				os.Rename(fpathT, fpath)
+		if !isMatchedFirst {
+			err = g.genTable(ctx, conn, tables, tmpFile, startKey, template.EndStatement)
+		}
+	}
+	if err == nil {
+		if !g.dryRun {
+			if file != nil {
+				err = file.Close()
 			}
+			if err == nil {
+				if file, err = os.OpenFile(fpath, os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0666); err == nil {
+					_, err = io.Copy(file, tmpFile)
+				}
+			}
+		} else {
+			fmt.Println(tmpFile.String())
 		}
 	}
 	return
 }
-func (g *genSchemaCommander) createEmpty(ctx context.Context, fpath string) (w *os.File, err error) {
-
+func (g *genSchemaCommander) createEmpty(ctx context.Context) (string, error) {
 	pwd := common.Pwd()
 	packageName := common.GetPackageName(pwd)
-	var content string
-	//file not exists
-	common.VerboseLog("create file: %s", fpath)
-	if content, err = template.GetNewEmptyFile(packageName); err == nil {
-		if g.dryRun {
-			w = os.Stdout
-		} else {
-			w, err = os.Create(fpath)
-		}
-		if err == nil {
-			w.WriteString(content)
-			w.WriteString("\n")
-			return w, nil
-		}
-	}
-
-	return
+	return template.GetNewEmptyFile(packageName)
 }
 
-func (g *genSchemaCommander) genTable(ctx context.Context, conn *sql.DB, tables []string, w *os.File, start, end string) (err error) {
+func (g *genSchemaCommander) genTable(ctx context.Context, conn *sql.DB, tables []string, w *bytes.Buffer, start, end string) (err error) {
 	common.VerboseLog("begin generate table:%v", tables)
 
-	buff := bytes.Buffer{}
+	buff := &bytes.Buffer{}
+	importsMap := make(map[string]common.Import, 2)
 	for _, table := range tables {
 		//var fields = make([]*gmodel.FieldInfo, 0, 10)
 		//fields := array.Make(true, true, 10)
@@ -307,20 +292,39 @@ func (g *genSchemaCommander) genTable(ctx context.Context, conn *sql.DB, tables 
 			//pgsql todo
 			return fmt.Errorf("not supported pgsql yet")
 		}
-		ObjName := g.GenName(table)
-		var code string
-		if g.action == CommandSchema {
-			code, err = g.GenTableSchema(ctx, table, ObjName, fields)
-		} else if g.action == CommandEntity {
-			code, err = g.GenTableEntity(ctx, table, ObjName, fields)
-		} else {
-			return fmt.Errorf("no found command:%s", g.action)
-		}
 		if err == nil {
-			buff.WriteString(code)
-			buff.WriteString("\n")
+			ObjName := g.GenName(table)
+			var code string
+			var imports []common.Import
+			if g.action == CommandSchema {
+				code, imports, err = g.GenTableSchema(ctx, table, ObjName, fields)
+			} else if g.action == CommandEntity {
+				code, imports, err = g.GenTableEntity(ctx, table, ObjName, fields)
+			} else {
+				return fmt.Errorf("no found command:%s", g.action)
+			}
+			if err == nil {
+				buff.WriteString(code)
+				buff.WriteString("\n")
+			}
+			for _, importItem := range imports {
+				if _, ok := importsMap[importItem.Name+":"+importItem.Path]; !ok {
+					importsMap[importItem.Name+":"+importItem.Path] = importItem
+				}
+			}
 		}
 	}
+	if err == nil {
+		var bs = w.Bytes()
+		for _, importItem := range importsMap {
+			bs, err = gcode.AddImport(bs, importItem.Name, importItem.Path)
+		}
+		if err == nil {
+			w.Reset()
+			w.Write(bs)
+		}
+	}
+
 	data := buff.Bytes()
 	w.WriteString(fmt.Sprintf("%s:%s\n", start, common.MD5(data)))
 	w.Write(data)
