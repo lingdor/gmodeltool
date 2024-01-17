@@ -1,14 +1,14 @@
 {$schemaType}
 {$schema}
 
-func (T *{$schemaTypeName}) ToSql() (string, []any) {
-	return T.TableName(), nil
+func (s *{$schemaTypeName}) ToSql(config gmodel.ToSqlConfig) (string, []any) {
+	return config.TableFormat(s.TableName()), nil
 }
 
-func (T *{$schemaTypeName}) As(name string) gmodel.ToSql {
-	return orm.WrapField(T).As(name)
+func (s *{$schemaTypeName}) As(name string) gmodel.ToSql {
+	return orm.WrapField(s).As(name)
 }
 
-func (T *{$schemaTypeName}) TableName() string {
+func (s *{$schemaTypeName}) TableName() string {
 	return {$tableName}
 }

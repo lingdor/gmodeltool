@@ -11,12 +11,19 @@ import (
 )
 
 func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, name string, columns []*common.ColumnInfo) (code string, imports []common.Import, err error) {
+
+	if len(columns) < 1 {
+		return "", []common.Import{}, nil
+	}
+
 	imports = make([]common.Import, 0)
 	maxLen := g.maxColumnLen(columns)
 	maxLen += 8
-	structBuf := bytes.Buffer{}
+	structBuf := &bytes.Buffer{}
+	casesBuf := &bytes.Buffer{}
 	var typeName = fmt.Sprintf("%sEntity", name)
 	structBuf.WriteString(fmt.Sprintf("type %s struct{\n", typeName))
+
 	for _, column := range columns {
 		field := column.Field
 
@@ -62,11 +69,16 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 		}
 		structBuf.WriteString(fmt.Sprintf("    // %s %s\n", column.Name, strings.ReplaceAll(column.Comment, "\n", "\n    //")))
 		structBuf.WriteString(fmt.Sprintf("%s %s `%s` //%s\n", fillName, memberType, tagInfo, column.Comment))
+
+		casesBuf.WriteString(fmt.Sprintf("    case %q: handlers[i]=&entity.%s\n", field.Name(), column.Name))
+
 	}
 	structBuf.WriteString("\n}")
 
 	if code, err = template.ReadFS("files/entity.go.template"); err == nil {
 		code = strings.ReplaceAll(code, "{$struct}", structBuf.String())
+		code = strings.ReplaceAll(code, "{$structName}", typeName)
+		code = strings.ReplaceAll(code, "{$cases}", casesBuf.String())
 	}
 	imports = nil
 	return

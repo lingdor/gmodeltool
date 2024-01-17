@@ -1,1 +1,14 @@
 {$struct}
+
+func (entity *{$structName}) GetFieldsHandler(fields []string)([]any,bool){
+    handlers :=make([]any,len(fields))
+    lack := false
+    for i,field:=range fields {
+        switch(field){
+        case "":
+{$cases}
+            default: lack=true
+        }
+    }
+    return handlers, lack
+}
