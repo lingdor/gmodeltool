@@ -5,6 +5,7 @@ go 1.18.0
 require (
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/lib/pq v1.10.9
+	github.com/lingdor/gcode v0.0.0
 	github.com/lingdor/gmodel v0.0.7
 	github.com/lingdor/magicarray v0.0.8
 	github.com/spf13/cobra v1.8.0
@@ -14,7 +15,6 @@ require (
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/lingdor/gcode v0.0.0 // indirect
 	golang.org/x/exp v0.0.0-20231226003508-02704c960a9b // indirect
 )
 
