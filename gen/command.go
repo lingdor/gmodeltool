@@ -39,6 +39,7 @@ func init() {
 	flags.StringVarP(&commander.tofiles, "to-files", "t", "", "generate files to path, If empty, generate to current file.")
 	flags.BoolVar(&commander.dryRun, "dry-run", false, "Testing to running and print results, do not write to files")
 	flags.BoolVar(&commander.gorm, "gorm", false, "generate entity for gorm tags.")
+	flags.BoolVar(&commander.parseTime, "parse-time", false, "if parse-time is true,will generate time.Time type fields.")
 }
 
 type genSchemaCommander struct {
@@ -49,6 +50,7 @@ type genSchemaCommander struct {
 	packageName string
 	action      string
 	gorm        bool
+	parseTime   bool
 }
 
 const CommandSchema = "schema"

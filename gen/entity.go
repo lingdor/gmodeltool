@@ -52,8 +52,10 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 		case "bigint bigint":
 			memberType = "*int64"
 		case "date", "timestamp", "time", "datetime":
-			memberType = "*time.Time"
-			imports = append(imports, common.Import{Path: "time"})
+			if g.parseTime {
+				memberType = "*time.Time"
+				imports = append(imports, common.Import{Path: "time"})
+			}
 		case "float":
 			memberType = "*float"
 		case "double":

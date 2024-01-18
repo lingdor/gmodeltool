@@ -12,3 +12,6 @@ func (s *{$schemaTypeName}) As(name string) gmodel.ToSql {
 func (s *{$schemaTypeName}) TableName() string {
 	return {$tableName}
 }
+func (s *{$schemaTypeName}) All() gmodel.ToSql {
+	return gmodel.AllSchemaFields(s)
+}
