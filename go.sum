@@ -11,6 +11,7 @@ github.com/lingdor/gmodel v0.0.7 h1:9elVCAXBUxsfvjYrujU1AJwzaUIrYG8xrhWoCTinuf0=
 github.com/lingdor/gmodel v0.0.7/go.mod h1:V/YeC6NgfzqibiC8Eakdx4jgfTRoNHlURRRoH4zzrjc=
 github.com/lingdor/magicarray v0.0.7 h1:EiikyhMXlMNdLg/7pnUZ67fTQD+se+7oT7fklX/8Q7E=
 github.com/lingdor/magicarray v0.0.7/go.mod h1:y+bzlLiWIOymEtvMEgf+BQlcRQQKdQuFmy3AB0MH9vI=
+github.com/lingdor/magicarray v0.0.8/go.mod h1:y+bzlLiWIOymEtvMEgf+BQlcRQQKdQuFmy3AB0MH9vI=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/spf13/cobra v1.8.0 h1:7aJaZx1B85qltLMc546zn58BxxfZdR/W22ej9CFoEf0=
 github.com/spf13/cobra v1.8.0/go.mod h1:WXLWApfZ71AjXPya3WOlMsY9yMs7YeiHhFVlvLyhcho=
