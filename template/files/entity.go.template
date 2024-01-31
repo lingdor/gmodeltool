@@ -12,3 +12,7 @@ func (entity *{$structName}) GetFieldsHandler(fields []string)([]any,bool){
     }
     return handlers, lack
 }
+func (entity *{$structName}) TableName() string{
+    return "${tablename}"
+
+}

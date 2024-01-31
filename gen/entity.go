@@ -70,7 +70,7 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 			tagInfo = fmt.Sprintf(`%s gorm:"column:%s%s"`, tagInfo, field.Name(), ops)
 		}
 		structBuf.WriteString(fmt.Sprintf("    // %s %s\n", column.Name, strings.ReplaceAll(column.Comment, "\n", "\n    //")))
-		structBuf.WriteString(fmt.Sprintf("%s %s `%s` //%s\n", fillName, memberType, tagInfo, column.Comment))
+		structBuf.WriteString(fmt.Sprintf("%s %s `%s`\n", fillName, memberType, tagInfo))
 
 		casesBuf.WriteString(fmt.Sprintf("    case %q: handlers[i]=&entity.%s\n", field.Name(), column.Name))
 
@@ -81,6 +81,7 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 		code = strings.ReplaceAll(code, "{$struct}", structBuf.String())
 		code = strings.ReplaceAll(code, "{$structName}", typeName)
 		code = strings.ReplaceAll(code, "{$cases}", casesBuf.String())
+		code = strings.ReplaceAll(code, "{tablename}", tname)
 	}
 	imports = nil
 	return
