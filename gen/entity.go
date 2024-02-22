@@ -17,6 +17,7 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 	}
 
 	imports = make([]common.Import, 0)
+	imports = append(imports, common.Import{Path: "github.com/lingdor/gmodel"})
 	maxLen := g.maxColumnLen(columns)
 	maxLen += 8
 	structBuf := &bytes.Buffer{}
@@ -78,11 +79,10 @@ func (g *genSchemaCommander) GenTableEntity(ctx context.Context, tname string, n
 	structBuf.WriteString("\n}")
 
 	if code, err = template.ReadFS("files/entity.go.template"); err == nil {
-		code = strings.ReplaceAll(code, "{$struct}", structBuf.String())
-		code = strings.ReplaceAll(code, "{$structName}", typeName)
-		code = strings.ReplaceAll(code, "{$cases}", casesBuf.String())
-		code = strings.ReplaceAll(code, "{tablename}", tname)
+		code = strings.ReplaceAll(code, "${struct}", structBuf.String())
+		code = strings.ReplaceAll(code, "${structName}", typeName)
+		code = strings.ReplaceAll(code, "${cases}", casesBuf.String())
+		code = strings.ReplaceAll(code, "${tableName}", fmt.Sprintf("%q", tname))
 	}
-	imports = nil
 	return
 }

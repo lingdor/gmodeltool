@@ -31,10 +31,10 @@ func (g *genSchemaCommander) GenTableSchema(ctx context.Context, tname string, n
 	variable.WriteString("\n}")
 
 	if code, err = template.ReadFS("files/schema.go.template"); err == nil {
-		code = strings.ReplaceAll(code, "{$schemaType}", structBuf.String())
-		code = strings.ReplaceAll(code, "{$schema}", variable.String())
-		code = strings.ReplaceAll(code, "{$schemaTypeName}", typeName)
-		code = strings.ReplaceAll(code, "{$tableName}", fmt.Sprintf("%q", tname))
+		code = strings.ReplaceAll(code, "${schemaType}", structBuf.String())
+		code = strings.ReplaceAll(code, "${schema}", variable.String())
+		code = strings.ReplaceAll(code, "${schemaTypeName}", typeName)
+		code = strings.ReplaceAll(code, "${tableName}", fmt.Sprintf("%q", tname))
 	}
 	imports = []common.Import{
 		{Path: "github.com/lingdor/gmodel"},

@@ -1,18 +1,22 @@
-{$struct}
+${struct}
 
-func (entity *{$structName}) GetFieldsHandler(fields []string)([]any,bool){
+func (entity *${structName}) GetFieldsHandler(fields []string)([]any,bool){
     handlers :=make([]any,len(fields))
     lack := false
     for i,field:=range fields {
         switch(field){
         case "":
-{$cases}
+${cases}
             default: lack=true
         }
     }
     return handlers, lack
 }
-func (entity *{$structName}) TableName() string{
-    return "${tablename}"
+func (entity *${structName}) TableName() string{
+    return ${tableName}
 
 }
+
+func (entity *${structName}) ToSql(config gmodel.ToSqlConfig) (string, []any) {
+    return config.TableFormat(entity.TableName()), nil
+ }

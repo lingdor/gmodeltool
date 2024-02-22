@@ -18,7 +18,7 @@ const StartStatement = "//gmodel:gen"
 
 func GetNewEmptyFile(packageName string) (cnt string, err error) {
 	cnt, err = ReadFS("files/new.go.template")
-	cnt = strings.ReplaceAll(cnt, "{$package}", packageName)
+	cnt = strings.ReplaceAll(cnt, "${package}", packageName)
 	return
 }
 func ReadFS(fname string) (cnt string, err error) {

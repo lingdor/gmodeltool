@@ -1,17 +1,17 @@
-{$schemaType}
-{$schema}
+${schemaType}
+${schema}
 
-func (s *{$schemaTypeName}) ToSql(config gmodel.ToSqlConfig) (string, []any) {
+func (s *${schemaTypeName}) ToSql(config gmodel.ToSqlConfig) (string, []any) {
 	return config.TableFormat(s.TableName()), nil
 }
 
-func (s *{$schemaTypeName}) As(name string) gmodel.ToSql {
+func (s *${schemaTypeName}) As(name string) gmodel.ToSql {
 	return orm.WrapField(s).As(name)
 }
 
-func (s *{$schemaTypeName}) TableName() string {
-	return {$tableName}
+func (s *${schemaTypeName}) TableName() string {
+	return ${tableName}
 }
-func (s *{$schemaTypeName}) All() gmodel.ToSql {
+func (s *${schemaTypeName}) All() gmodel.ToSql {
 	return gmodel.AllSchemaFields(s)
 }
