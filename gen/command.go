@@ -36,7 +36,7 @@ func init() {
 	flags := Command.Flags()
 	flags.StringVar(&commander.tables, "tables", "", "you can use comma split table names, and use wildcard character to search tables.")
 	flags.StringVar(&commander.name, "name", "", "")
-	flags.StringVarP(&commander.tofiles, "to-files", "t", "", "generate files to path, If empty, generate to current file.")
+	flags.StringVarP(&commander.toPath, "to-path", "t", "", "generate files to to-path, If empty, generate to current file.")
 	flags.BoolVar(&commander.dryRun, "dry-run", false, "Testing to running and print results, do not write to files")
 	flags.BoolVar(&commander.gorm, "gorm", false, "generate entity for gorm tags.")
 	flags.BoolVar(&commander.parseTime, "parse-time", false, "if parse-time is true,will generate time.Time type fields.")
@@ -45,7 +45,7 @@ func init() {
 type genSchemaCommander struct {
 	tables      string
 	name        string
-	tofiles     string
+	toPath      string
 	dryRun      bool
 	packageName string
 	action      string
@@ -129,6 +129,9 @@ func (g *genSchemaCommander) GenName(dbName string) string {
 	} else {
 		panic("db name is empty")
 	}
+	if strings.Index(dbName, "-") != -1 {
+		dbName = strings.ReplaceAll(dbName, "-", "")
+	}
 	return dbName
 }
 
@@ -136,37 +139,37 @@ func (g *genSchemaCommander) genTables(ctx context.Context, conn *sql.DB, tables
 
 	common.VerboseLog("generating table: %v", tables)
 	pwd := common.Pwd()
-	var fpath string
+	var ftoPath string
 
-	if gofile, ok := os.LookupEnv("GOFILE"); !ok && g.tofiles == "" {
+	if gofile, ok := os.LookupEnv("GOFILE"); !ok && g.toPath == "" {
 		return fmt.Errorf("no found --to-files parameters set")
-	} else if ok && g.tofiles == "" {
-		fpath = path.Join(pwd, gofile)
+	} else if ok && g.toPath == "" {
+		ftoPath = path.Join(pwd, gofile)
 	}
 
-	if g.tofiles != "" {
+	if g.toPath != "" {
 		for _, table := range tables {
 			fname := strings.ToLower(strings.ReplaceAll(table, "_", ""))
 			fname = fmt.Sprintf("%s_gen.go", fname)
 			var to string
-			if g.tofiles == "" || g.tofiles[0] == '.' {
-				to = path.Join(pwd, g.tofiles)
+			if g.toPath == "" || g.toPath[0] == '.' {
+				to = path.Join(pwd, g.toPath)
 			} else {
-				to = g.tofiles
+				to = g.toPath
 			}
-			fpath = path.Join(to, fname)
+			ftoPath = path.Join(to, fname)
 			startKey := fmt.Sprintf("%s:%s:%s", template.StartStatement, g.action, strings.ToLower(table))
-			if err = g.genTableFile(ctx, conn, fpath, startKey, table); err != nil {
+			if err = g.genTableFile(ctx, conn, ftoPath, startKey, table); err != nil {
 				return err
 			}
 		}
 		return
 	}
 	startKey := fmt.Sprintf("%s:%s:@embed", template.StartStatement, g.action)
-	err = g.genTableFile(ctx, conn, fpath, startKey, tables...)
+	err = g.genTableFile(ctx, conn, ftoPath, startKey, tables...)
 	return
 }
-func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, fpath string, startKey string, tables ...string) (err error) {
+func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, ftoPath string, startKey string, tables ...string) (err error) {
 
 	var goline = -1
 	if envGoline, ok := os.LookupEnv("GOLINE"); ok {
@@ -175,8 +178,8 @@ func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, fpa
 
 	var tmpFile = &bytes.Buffer{}
 	var file *os.File
-	if _, err = os.Stat(fpath); err == nil {
-		file, err = os.Open(fpath)
+	if _, err = os.Stat(ftoPath); err == nil {
+		file, err = os.Open(ftoPath)
 	} else if os.IsNotExist(err) {
 		var code string
 		code, err = g.createEmpty(ctx)
@@ -194,7 +197,7 @@ func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, fpa
 		var isMatchedFirst = false
 		if file != nil {
 			for line, err := posReader.ReadLine(); err == nil; line, err = posReader.ReadLine() {
-				if goline != -1 && g.tofiles == "" { //embed model
+				if goline != -1 && g.toPath == "" { //embed model
 					if !isMatchedFirst && posReader.LineNo > goline {
 						if strings.TrimSpace(line) == "" {
 							continue //ignore empty lines
@@ -241,7 +244,7 @@ func (g *genSchemaCommander) genTableFile(ctx context.Context, conn *sql.DB, fpa
 				err = file.Close()
 			}
 			if err == nil {
-				if file, err = os.OpenFile(fpath, os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0666); err == nil {
+				if file, err = os.OpenFile(ftoPath, os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0666); err == nil {
 					_, err = io.Copy(file, tmpFile)
 				}
 			}
