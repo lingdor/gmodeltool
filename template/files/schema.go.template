@@ -2,11 +2,27 @@
 {$schema}
 
 func (s *{$schemaTypeName}) ToSql(config gmodel.ToSqlConfig) (string, []any) {
-	return config.TableFormat(s.TableName()), nil
+    if s._alias == "" {
+        return config.TableFormat(s.TableName()), nil
+    } else {
+        return fmt.Sprintf("%s as %s", config.TableFormat(s.TableName()), config.FieldFormat(s._alias)), nil
+    }
 }
 
-func (s *{$schemaTypeName}) As(name string) gmodel.ToSql {
-	return orm.WrapField(s).As(name)
+func (s *{$schemaTypeName}) Fields() []*gmodel.Field {
+	return []*gmodel.Field{
+		{$refFields}
+	}
+}
+
+func (s *{$schemaTypeName}) As(name string) *{$schemaTypeName} {
+
+    ins:=*s
+	for _, f := range ins.Fields() {
+		*f = gmodel.GetFieldForAlias(*f, name)
+	}
+	ins._alias = name
+	return &ins
 }
 
 func (s *{$schemaTypeName}) TableName() string {

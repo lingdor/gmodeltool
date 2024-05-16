@@ -16,16 +16,19 @@ func (g *genSchemaCommander) GenTableSchema(ctx context.Context, tname string, n
 	maxLen += 8
 	structBuf := bytes.Buffer{}
 	variable := bytes.Buffer{}
+	refFields := bytes.Buffer{}
 	var typeName = fmt.Sprintf("%sSchemaType", name)
-	structBuf.WriteString(fmt.Sprintf("type %s struct{\n", typeName))
+	structBuf.WriteString(fmt.Sprintf("type %s struct{\n\t_alias string\n", typeName))
 	variable.WriteString(fmt.Sprintf("var %sSchema *%s = &%s{\n", name, typeName, typeName))
 	for _, column := range fields {
 		field := column.Field
 		fillName := utils.PadLeftRightSpaces(column.Name, 4, maxLen)
-		structBuf.WriteString(fmt.Sprintf("    // %s %s \n", column.Name, strings.ReplaceAll(column.Comment, "\n", "\n    //")))
-		structBuf.WriteString(fmt.Sprintf("%s gmodel.Field\n", fillName))
-		variable.WriteString(fmt.Sprintf("%s :gmodel.NewField(\"%s\", \"%s\", %v, %v),\n",
+		structBuf.WriteString(fmt.Sprintf("\t// %s %s \n", column.Name, strings.ReplaceAll(column.Comment, "\n", "\n    //")))
+		structBuf.WriteString(fmt.Sprintf("\t%s gmodel.Field\n", fillName))
+		variable.WriteString(fmt.Sprintf("\t%s :gmodel.NewField(\"%s\", \"%s\", %v, %v),\n",
 			fillName, field.Name(), field.Type(), field.IsNullable(), field.IsPK()))
+		//&s.Id,
+		refFields.WriteString(fmt.Sprintf("\t&s.%s,\n", column.Name))
 	}
 	structBuf.WriteString("\n}")
 	variable.WriteString("\n}")
@@ -35,10 +38,12 @@ func (g *genSchemaCommander) GenTableSchema(ctx context.Context, tname string, n
 		code = strings.ReplaceAll(code, "{$schema}", variable.String())
 		code = strings.ReplaceAll(code, "{$schemaTypeName}", typeName)
 		code = strings.ReplaceAll(code, "{$tableName}", fmt.Sprintf("%q", tname))
+		code = strings.ReplaceAll(code, "{$refFields}", refFields.String())
 	}
 	imports = []common.Import{
 		{Path: "github.com/lingdor/gmodel"},
-		{Path: "github.com/lingdor/gmodel/orm"},
+		//{Path: "github.com/lingdor/gmodel/orm"},
+		{Path: "fmt"},
 	}
 	return
 }
